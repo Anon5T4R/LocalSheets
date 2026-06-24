@@ -139,6 +139,11 @@ body {
   font-size: 13px;
 }
 
+/* jspreadsheet/jsuites set text-transform on inputs globally; keep ours literal */
+.formula-bar input {
+  text-transform: none;
+}
+
 .formula-bar input:focus {
   outline: none;
   border-color: var(--accent);

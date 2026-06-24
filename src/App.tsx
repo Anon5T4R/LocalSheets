@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { ask } from "@tauri-apps/plugin-dialog";
-import { Spreadsheet, SheetInstance } from "./Spreadsheet";
+import { Spreadsheet, SheetInstance, MIN_COLS, MIN_ROWS } from "./Spreadsheet";
 import { SheetAiPanel } from "./ai/SheetAiPanel";
 import { CellEdit } from "./lib/ai";
 import {
@@ -24,6 +24,22 @@ function colToIndex(col: string): number {
   let n = 0;
   for (const ch of col.toUpperCase()) n = n * 26 + (ch.charCodeAt(0) - 64);
   return n - 1;
+}
+
+// Ensure a grid fills at least the default viewport (a 1x1 or sparse grid would
+// render collapsed). Existing data wider/taller than the minimum is kept.
+function padGrid(grid: Grid): Grid {
+  const rows = Math.max(grid.length, MIN_ROWS);
+  let cols = MIN_COLS;
+  for (const r of grid) if (r && r.length > cols) cols = r.length;
+  const out: Grid = [];
+  for (let y = 0; y < rows; y++) {
+    const src = grid[y] || [];
+    const row: Grid[number] = [];
+    for (let x = 0; x < cols; x++) row.push(src[x] ?? "");
+    out.push(row);
+  }
+  return out;
 }
 
 function App() {
@@ -123,7 +139,7 @@ function App() {
     if (!w) return;
     loadingRef.current = true;
     try {
-      w.setData(grid.length ? grid : [[""]]);
+      w.setData(padGrid(grid));
     } catch {
       /* ignore */
     }
@@ -143,7 +159,7 @@ function App() {
 
   const handleNew = useCallback(() => {
     loadGrid(
-      Array.from({ length: 40 }, () => Array.from({ length: 12 }, () => "")),
+      Array.from({ length: MIN_ROWS }, () => Array.from({ length: MIN_COLS }, () => "")),
       null
     );
   }, [loadGrid]);

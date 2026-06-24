@@ -45,8 +45,25 @@ export async function openSheet(): Promise<SheetFile | null> {
   return loadSheetPath(selected);
 }
 
+// Drop trailing all-empty rows/columns so the padded display grid doesn't
+// bloat the saved file with thousands of empty cells.
+function trimGrid(data: Grid): Grid {
+  let lastRow = -1;
+  let lastCol = -1;
+  data.forEach((row, r) =>
+    row?.forEach((c, ci) => {
+      if (c !== "" && c != null) {
+        if (r > lastRow) lastRow = r;
+        if (ci > lastCol) lastCol = ci;
+      }
+    })
+  );
+  if (lastRow < 0) return [[""]];
+  return data.slice(0, lastRow + 1).map((row) => row.slice(0, lastCol + 1));
+}
+
 export async function saveSheetTo(path: string, data: Grid): Promise<void> {
-  const ws = XLSX.utils.aoa_to_sheet(data);
+  const ws = XLSX.utils.aoa_to_sheet(trimGrid(data));
   if (fmtFromPath(path) === "csv") {
     await invoke("write_text_file", { path, contents: XLSX.utils.sheet_to_csv(ws) });
   } else {

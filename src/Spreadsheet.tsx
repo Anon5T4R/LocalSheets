@@ -9,6 +9,10 @@ import { computeFormula } from "./lib/formula-fix";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SheetInstance = any;
 
+// Default usable grid size for every worksheet.
+export const MIN_COLS = 26;
+export const MIN_ROWS = 100;
+
 interface SpreadsheetProps {
   onReady: (instance: SheetInstance) => void;
   onChange?: () => void;
@@ -82,6 +86,21 @@ export function Spreadsheet({ onReady, onChange, onSelect }: SpreadsheetProps) {
       onafterchanges: () => changeRef.current?.(),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onselection: (ws: any, x1: number, y1: number) => emitSelection(ws, x1, y1),
+      // New worksheets (the "+" tab) are created tiny (10x15) or empty; pad them
+      // to a full grid so every sheet looks like the first one.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      oncreateworksheet: (worksheet: any) => {
+        setTimeout(() => {
+          try {
+            const cols = worksheet.headers?.length ?? 0;
+            const rows = worksheet.rows?.length ?? 0;
+            if (cols > 0 && cols < MIN_COLS) worksheet.insertColumn(MIN_COLS - cols);
+            if (rows > 0 && rows < MIN_ROWS) worksheet.insertRow(MIN_ROWS - rows);
+          } catch {
+            /* ignore */
+          }
+        }, 0);
+      },
       // Take over lookup/conditional functions the basic engine computes wrong.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onbeforeformula: (ws: any, expression: string, x?: number, y?: number) =>
@@ -120,7 +139,7 @@ export function Spreadsheet({ onReady, onChange, onSelect }: SpreadsheetProps) {
       },
       worksheets: [
         {
-          minDimensions: [26, 100],
+          minDimensions: [MIN_COLS, MIN_ROWS],
           worksheetName: "Planilha1",
         },
       ],
