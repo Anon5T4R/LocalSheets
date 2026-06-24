@@ -1,0 +1,55 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22c55e"/>
+      <stop offset="1" stop-color="#15803d"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#064e29" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1024" height="1024" rx="224" fill="url(#bg)"/>
+
+  <!-- Spreadsheet card -->
+  <g filter="url(#shadow)">
+    <rect x="232" y="196" width="560" height="632" rx="20" fill="#ffffff"/>
+    <!-- header row -->
+    <rect x="232" y="196" width="560" height="92" rx="20" fill="#16a34a"/>
+    <rect x="232" y="248" width="560" height="40" fill="#16a34a"/>
+  </g>
+
+  <!-- grid lines -->
+  <g stroke="#d1d5db" stroke-width="3">
+    <!-- verticals -->
+    <line x1="372" y1="288" x2="372" y2="828"/>
+    <line x1="512" y1="288" x2="512" y2="828"/>
+    <line x1="652" y1="288" x2="652" y2="828"/>
+    <!-- horizontals -->
+    <line x1="232" y1="378" x2="792" y2="378"/>
+    <line x1="232" y1="468" x2="792" y2="468"/>
+    <line x1="232" y1="558" x2="792" y2="558"/>
+    <line x1="232" y1="648" x2="792" y2="648"/>
+    <line x1="232" y1="738" x2="792" y2="738"/>
+  </g>
+
+  <!-- header cells (white ticks) -->
+  <g fill="#ffffff" opacity="0.9">
+    <rect x="280" y="232" width="48" height="20" rx="6"/>
+    <rect x="420" y="232" width="48" height="20" rx="6"/>
+    <rect x="560" y="232" width="48" height="20" rx="6"/>
+    <rect x="700" y="232" width="48" height="20" rx="6"/>
+  </g>
+
+  <!-- a couple of filled data cells (green) -->
+  <g fill="#bbf7d0">
+    <rect x="235" y="381" width="134" height="84"/>
+    <rect x="515" y="561" width="134" height="84"/>
+  </g>
+
+  <!-- Easter egg: "Taylor" handwritten in a cell -->
+  <text x="392" y="612"
+        font-family="'Segoe Script','Brush Script MT','Comic Sans MS',cursive"
+        font-size="62" font-style="italic" font-weight="700"
+        fill="#15803d">Taylor</text>
+</svg>
