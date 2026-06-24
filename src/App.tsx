@@ -20,6 +20,12 @@ function fmtFromPath(path: string | null): "csv" | "xlsx" {
   return path && path.toLowerCase().endsWith(".csv") ? "csv" : "xlsx";
 }
 
+function colToIndex(col: string): number {
+  let n = 0;
+  for (const ch of col.toUpperCase()) n = n * 26 + (ch.charCodeAt(0) - 64);
+  return n - 1;
+}
+
 function App() {
   const sheetRef = useRef<SheetInstance | null>(null);
   const ws = () => sheetRef.current?.[0];
@@ -29,6 +35,10 @@ function App() {
   const [aiOpen, setAiOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
+
+  // Formula bar: active cell name + its raw content (formula or value).
+  const [cellRef, setCellRef] = useState("A1");
+  const [formula, setFormula] = useState("");
 
   // Apply the saved theme on load, and follow the OS when set to "system".
   useEffect(() => {
@@ -54,6 +64,47 @@ function App() {
   }, []);
 
   const getData = useCallback((): Grid => (ws()?.getData() as Grid) ?? [], []);
+
+  // --- Formula bar ---
+  const handleSelect = useCallback((cell: string, raw: string) => {
+    setCellRef(cell);
+    setFormula(raw);
+  }, []);
+
+  const commitFormula = useCallback(
+    (value: string) => {
+      const w = ws();
+      if (!w) return;
+      try {
+        w.setValue(cellRef, value);
+      } catch {
+        /* ignore bad ref */
+      }
+    },
+    [cellRef]
+  );
+
+  const revertFormula = useCallback(() => {
+    const w = ws();
+    const m = cellRef.toUpperCase().match(/^([A-Z]+)(\d+)$/);
+    if (!w || !m) return;
+    const raw = w.getValueFromCoords(colToIndex(m[1]), parseInt(m[2], 10) - 1, false);
+    setFormula(raw == null ? "" : String(raw));
+  }, [cellRef]);
+
+  // Name box: typing a reference (e.g. "B10") + Enter jumps to that cell.
+  const gotoCell = useCallback((ref: string) => {
+    const w = ws();
+    const m = ref.trim().toUpperCase().match(/^([A-Z]+)(\d+)$/);
+    if (!w || !m) return;
+    const x = colToIndex(m[1]);
+    const y = parseInt(m[2], 10) - 1;
+    try {
+      w.updateSelectionFromCoords(x, y, x, y);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const applyEdits = useCallback((edits: CellEdit[]) => {
     const w = ws();
@@ -198,6 +249,42 @@ function App() {
         <button className={"tb-btn" + (aiOpen ? " is-active" : "")} onClick={() => setAiOpen((v) => !v)} title="IA local">✦ IA</button>
       </div>
 
+      <div className="formula-bar">
+        <input
+          className="name-box"
+          value={cellRef}
+          onChange={(e) => setCellRef(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              gotoCell(cellRef);
+              (e.target as HTMLInputElement).blur();
+            }
+          }}
+          spellCheck={false}
+          title="Ir para a célula"
+        />
+        <span className="fx-label">fx</span>
+        <input
+          className="formula-input"
+          value={formula}
+          onChange={(e) => setFormula(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commitFormula(formula);
+              (e.target as HTMLInputElement).blur();
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              revertFormula();
+              (e.target as HTMLInputElement).blur();
+            }
+          }}
+          spellCheck={false}
+          placeholder="Valor ou fórmula (=…)"
+        />
+      </div>
+
       <div className="workspace">
         <div className="sheet-wrap">
           <Spreadsheet
@@ -205,6 +292,7 @@ function App() {
               sheetRef.current = inst;
             }}
             onChange={markDirty}
+            onSelect={handleSelect}
           />
         </div>
         {aiOpen && (

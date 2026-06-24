@@ -97,6 +97,53 @@ body {
   white-space: nowrap;
 }
 
+/* Formula bar (Excel-style): name box + fx + editable formula/value */
+.formula-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  padding: 5px 8px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.formula-bar .name-box {
+  width: 92px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  text-align: center;
+}
+
+.formula-bar .fx-label {
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  color: var(--muted);
+  font-style: italic;
+  font-size: 13px;
+}
+
+.formula-bar .formula-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 13px;
+}
+
+.formula-bar input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 /* Workspace = sheet + optional AI panel */
 .workspace {
   flex: 1;

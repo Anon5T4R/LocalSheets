@@ -12,6 +12,8 @@ export type SheetInstance = any;
 interface SpreadsheetProps {
   onReady: (instance: SheetInstance) => void;
   onChange?: () => void;
+  /** Fires with the active cell's name and its raw content (formula or value). */
+  onSelect?: (cell: string, raw: string) => void;
 }
 
 function colLetter(index: number): string {
@@ -48,10 +50,21 @@ function clearBorders(ws: any) {
   }
 }
 
-export function Spreadsheet({ onReady, onChange }: SpreadsheetProps) {
+export function Spreadsheet({ onReady, onChange, onSelect }: SpreadsheetProps) {
   const ref = useRef<HTMLDivElement>(null);
   const changeRef = useRef(onChange);
   changeRef.current = onChange;
+  const selectRef = useRef(onSelect);
+  selectRef.current = onSelect;
+  const activeCell = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Push the active cell's raw content (formula or value) to the formula bar.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const emitSelection = (ws: any, x: number, y: number) => {
+    activeCell.current = { x, y };
+    const raw = ws.getValueFromCoords(x, y, false);
+    selectRef.current?.(colLetter(x) + (y + 1), raw == null ? "" : String(raw));
+  };
 
   useEffect(() => {
     const el = ref.current;
@@ -59,8 +72,16 @@ export function Spreadsheet({ onReady, onChange }: SpreadsheetProps) {
     const instance = jspreadsheet(el, {
       tabs: true,
       toolbar: true,
-      onchange: () => changeRef.current?.(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      onchange: (ws: any) => {
+        changeRef.current?.();
+        // Refresh the bar (covers grid edits and AI edits to the active cell).
+        const { x, y } = activeCell.current;
+        emitSelection(ws, x, y);
+      },
       onafterchanges: () => changeRef.current?.(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      onselection: (ws: any, x1: number, y1: number) => emitSelection(ws, x1, y1),
       // Take over lookup/conditional functions the basic engine computes wrong.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onbeforeformula: (ws: any, expression: string, x?: number, y?: number) =>
