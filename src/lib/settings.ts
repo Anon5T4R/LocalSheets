@@ -1,8 +1,11 @@
+export type Theme = "system" | "light" | "dark";
+
 export interface Settings {
   modelsDir: string;
   lastModelPath: string;
   ngl: number;
   ctx: number;
+  theme: Theme;
 }
 
 export const DEFAULT_MODELS_DIR = "D:\\LocalAIModels\\.lmstudio\\hub\\models";
@@ -12,7 +15,19 @@ const DEFAULTS: Settings = {
   lastModelPath: "",
   ngl: 0,
   ctx: 4096,
+  theme: "system",
 };
+
+/** Resolve "system" to the OS preference and apply it to <html data-theme>. */
+export function applyTheme(theme: Theme): void {
+  const resolved =
+    theme === "system"
+      ? window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light"
+      : theme;
+  document.documentElement.dataset.theme = resolved;
+}
 
 const KEY = "localsheets.settings";
 

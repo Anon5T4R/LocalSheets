@@ -13,7 +13,7 @@ import {
   saveSheetAs,
   saveSheetTo,
 } from "./lib/sheet-io";
-import { Settings, loadSettings, saveSettings } from "./lib/settings";
+import { Settings, Theme, applyTheme, loadSettings, saveSettings } from "./lib/settings";
 import "./App.css";
 
 function fmtFromPath(path: string | null): "csv" | "xlsx" {
@@ -27,7 +27,18 @@ function App() {
   const [filePath, setFilePath] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
+
+  // Apply the saved theme on load, and follow the OS when set to "system".
+  useEffect(() => {
+    applyTheme(settings.theme);
+    if (settings.theme !== "system") return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => applyTheme("system");
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [settings.theme]);
 
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
@@ -183,6 +194,7 @@ function App() {
         <div className="tb-spacer" />
         <span className="filename" title={fileName}>{dirty ? "● " : ""}{fileName} · {fmt.toUpperCase()}</span>
         <div className="tb-sep" />
+        <button className="tb-btn" onClick={() => setSettingsOpen(true)} title="Configurações">⚙</button>
         <button className={"tb-btn" + (aiOpen ? " is-active" : "")} onClick={() => setAiOpen((v) => !v)} title="IA local">✦ IA</button>
       </div>
 
@@ -204,6 +216,56 @@ function App() {
             onClose={() => setAiOpen(false)}
           />
         )}
+      </div>
+
+      {settingsOpen && (
+        <SettingsModal
+          theme={settings.theme}
+          onTheme={(t) => updateSettings({ theme: t })}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function SettingsModal({
+  theme,
+  onTheme,
+  onClose,
+}: {
+  theme: Theme;
+  onTheme: (t: Theme) => void;
+  onClose: () => void;
+}) {
+  const opts: { id: Theme; label: string }[] = [
+    { id: "system", label: "Sistema" },
+    { id: "light", label: "Claro" },
+    { id: "dark", label: "Escuro" },
+  ];
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">Configurações</div>
+        <div className="modal-body">
+          <label className="modal-field">
+            <span>Tema</span>
+            <div className="seg">
+              {opts.map((o) => (
+                <button
+                  key={o.id}
+                  className={theme === o.id ? "active" : ""}
+                  onClick={() => onTheme(o.id)}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </label>
+        </div>
+        <div className="modal-footer">
+          <button className="tb-btn" onClick={onClose}>Fechar</button>
+        </div>
       </div>
     </div>
   );

@@ -61,7 +61,16 @@ export async function streamChat(
   const res = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, stream: true, temperature: opts.temperature ?? 0.4 }),
+    body: JSON.stringify({
+      messages,
+      stream: true,
+      temperature: opts.temperature ?? 0.4,
+      // Desliga o "raciocínio" por padrão em modelos Qwen3/DeepSeek e afins.
+      // É o mesmo que o LM Studio faz: passa enable_thinking=false ao template
+      // de chat do servidor. Modelos que não usam isso simplesmente ignoram.
+      chat_template_kwargs: { enable_thinking: false },
+      reasoning_format: "none",
+    }),
     signal: opts.signal,
   });
   if (!res.ok || !res.body) throw new Error(`a IA respondeu ${res.status}`);
@@ -179,8 +188,9 @@ export function parseEdits(text: string): CellEdit[] {
 }
 
 export const SHEET_SYSTEM = (context: string) =>
-  `Você é um assistente de planilha do LocalSheets. A planilha atual (notação A1, colunas no topo, linhas à esquerda):\n\n${context}\n\n` +
-  `Quando o usuário pedir para MODIFICAR/preencher/calcular a planilha, responda em duas partes:\n` +
-  `1) uma frase curta explicando; 2) um bloco \`\`\`json com um array de edições no formato ` +
-  `[{"cell":"B2","value":"=A2*2"}]. Use fórmulas (começando com =) quando fizer sentido. ` +
+  `Você é o assistente da planilha do LocalSheets. Estado atual (notação A1, colunas no topo, linhas à esquerda):\n\n${context}\n\n` +
+  `Para MODIFICAR a planilha, responda em duas partes:\n` +
+  `1) uma frase curta dizendo o que vai fazer;\n` +
+  `2) um bloco \`\`\`json com um array de edições: [{"cell":"C2","value":"..."}].\n` +
+  `O "value" pode ser número, texto ou fórmula iniciada por "=" (ex.: "=A2+B2"). Faça exatamente o que foi pedido, da forma mais direta; não complique.\n` +
   `Para PERGUNTAS sobre os dados, responda só em texto, sem JSON.`;
