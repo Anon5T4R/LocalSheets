@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "LocalSheets ${{ github.ref_name }}"
+          releaseBody: |
+            ## LocalSheets ${{ github.ref_name }}
+
+            Planilha offline com IA local (llama.cpp / GGUF).
+
+            ### Instalação
+            Baixe o arquivo `.exe` abaixo e execute — não precisa instalar nada além.
+
+            > **IA:** coloque seus modelos `.gguf` numa pasta, clique **+ IA**, escaneie e inicie.
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: false
