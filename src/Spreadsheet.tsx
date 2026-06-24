@@ -54,6 +54,36 @@ function clearBorders(ws: any) {
   }
 }
 
+// jspreadsheet's own "sem bordas" (border_clear) sets each side to a single
+// space (e.g. "border-top: "). The CSSOM ignores whitespace values — only an
+// empty string clears a property — so the border visually stays. setStyle still
+// fires `onchangestyle` with those attempted declarations, so we catch them here
+// and clear the offending border properties on the cell element for real. This
+// fixes both the toolbar control and our right-click "Limpar bordas" item.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function repairBorderClear(ws: any, records: Record<string, string>) {
+  if (!records || typeof records !== "object") return;
+  for (const cell in records) {
+    const css = records[cell];
+    if (typeof css !== "string" || css.indexOf("border") === -1) continue;
+    const m = cell.match(/^([A-Z]+)(\d+)$/);
+    if (!m) continue;
+    let x = 0;
+    for (const ch of m[1]) x = x * 26 + (ch.charCodeAt(0) - 64);
+    x -= 1;
+    const y = parseInt(m[2], 10) - 1;
+    const el: HTMLElement | undefined = ws.records?.[y]?.[x]?.element;
+    if (!el) continue;
+    for (const decl of css.split(";")) {
+      const idx = decl.indexOf(":");
+      if (idx === -1) continue;
+      const prop = decl.slice(0, idx).trim();
+      const val = decl.slice(idx + 1).trim();
+      if (prop.startsWith("border") && val === "") el.style.removeProperty(prop);
+    }
+  }
+}
+
 export function Spreadsheet({ onReady, onChange, onSelect }: SpreadsheetProps) {
   const ref = useRef<HTMLDivElement>(null);
   const changeRef = useRef(onChange);
@@ -86,6 +116,9 @@ export function Spreadsheet({ onReady, onChange, onSelect }: SpreadsheetProps) {
       onafterchanges: () => changeRef.current?.(),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onselection: (ws: any, x1: number, y1: number) => emitSelection(ws, x1, y1),
+      // Fix borders that the toolbar / context menu fail to actually clear.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      onchangestyle: (ws: any, records: Record<string, string>) => repairBorderClear(ws, records),
       // New worksheets (the "+" tab) are created tiny (10x15) or empty; pad them
       // to a full grid so every sheet looks like the first one.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

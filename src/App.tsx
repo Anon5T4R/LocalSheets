@@ -26,6 +26,35 @@ function colToIndex(col: string): number {
   return n - 1;
 }
 
+function indexToCol(index: number): string {
+  let s = "";
+  let i = index + 1;
+  while (i > 0) {
+    const m = (i - 1) % 26;
+    s = String.fromCharCode(65 + m) + s;
+    i = Math.floor((i - 1) / 26);
+  }
+  return s;
+}
+
+// Expand an A1 reference into the list of cell names it covers. A single cell
+// ("B2") returns itself; a range ("A1:D1") returns every cell in the rectangle.
+// Used so AI edits can target ranges for both values and styles.
+function expandRange(ref: string): string[] {
+  const m = ref.toUpperCase().match(/^([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?$/);
+  if (!m) return [ref];
+  if (!m[3]) return [m[1] + m[2]];
+  const x1 = colToIndex(m[1]);
+  const y1 = parseInt(m[2], 10);
+  const x2 = colToIndex(m[3]);
+  const y2 = parseInt(m[4], 10);
+  const [lox, hix] = x1 <= x2 ? [x1, x2] : [x2, x1];
+  const [loy, hiy] = y1 <= y2 ? [y1, y2] : [y2, y1];
+  const cells: string[] = [];
+  for (let y = loy; y <= hiy; y++) for (let x = lox; x <= hix; x++) cells.push(indexToCol(x) + y);
+  return cells;
+}
+
 // Ensure a grid fills at least the default viewport (a 1x1 or sparse grid would
 // render collapsed). Existing data wider/taller than the minimum is kept.
 function padGrid(grid: Grid): Grid {
@@ -127,7 +156,15 @@ function App() {
     if (!w) return;
     edits.forEach((e) => {
       try {
-        w.setValue(e.cell, e.value);
+        const cells = expandRange(e.cell);
+        if (e.value !== undefined) {
+          cells.forEach((c) => w.setValue(c, e.value as string | number));
+        }
+        if (e.style) {
+          const styles: Record<string, string> = {};
+          cells.forEach((c) => (styles[c] = e.style as string));
+          w.setStyle(styles);
+        }
       } catch {
         /* ignore bad cell */
       }

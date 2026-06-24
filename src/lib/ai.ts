@@ -168,10 +168,13 @@ export function sheetToContext(data: Grid, maxRows = 40, maxCols = 20): string {
 
 export interface CellEdit {
   cell: string;
-  value: string | number;
+  /** New cell content (text, number or "=formula"). Absent for style-only edits. */
+  value?: string | number;
+  /** CSS declarations to format the cell(s), e.g. "background-color: #ef4444". */
+  style?: string;
 }
 
-/** Extract a JSON array of {cell,value} edits from the model's reply, if present. */
+/** Extract a JSON array of edits ({cell, value?, style?}) from the model's reply. */
 export function parseEdits(text: string): CellEdit[] {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const raw = fenced ? fenced[1] : text.match(/\[\s*\{[\s\S]*\}\s*\]/)?.[0];
@@ -181,7 +184,14 @@ export function parseEdits(text: string): CellEdit[] {
     if (!Array.isArray(arr)) return [];
     return arr
       .filter((e) => e && typeof e.cell === "string")
-      .map((e) => ({ cell: String(e.cell).toUpperCase().trim(), value: e.value ?? "" }));
+      .map((e) => {
+        const edit: CellEdit = { cell: String(e.cell).toUpperCase().trim() };
+        if ("value" in e) edit.value = e.value ?? "";
+        if (typeof e.style === "string" && e.style.trim()) edit.style = e.style.trim();
+        return edit;
+      })
+      // Drop empty objects that carry neither a value nor a style.
+      .filter((e) => e.value !== undefined || e.style !== undefined);
   } catch {
     return [];
   }
@@ -191,6 +201,23 @@ export const SHEET_SYSTEM = (context: string) =>
   `Você é o assistente da planilha do LocalSheets. Estado atual (notação A1, colunas no topo, linhas à esquerda):\n\n${context}\n\n` +
   `Para MODIFICAR a planilha, responda em duas partes:\n` +
   `1) uma frase curta dizendo o que vai fazer;\n` +
-  `2) um bloco \`\`\`json com um array de edições: [{"cell":"C2","value":"..."}].\n` +
-  `O "value" pode ser número, texto ou fórmula iniciada por "=" (ex.: "=A2+B2"). Faça exatamente o que foi pedido, da forma mais direta; não complique.\n` +
+  `2) um bloco \`\`\`json com um array de edições.\n\n` +
+  `Cada edição é um objeto com "cell" e pelo menos um entre "value" e "style":\n` +
+  `- "cell": uma célula ("C2") ou um intervalo ("A1:D1").\n` +
+  `- "value": número, texto ou fórmula iniciada por "=" (ex.: "=A2+B2"). Use para CONTEÚDO.\n` +
+  `- "style": string CSS para FORMATAR (cor, borda, negrito, alinhamento).\n\n` +
+  `Propriedades CSS (use exatamente estes nomes):\n` +
+  `- cor de fundo: "background-color: #ef4444"\n` +
+  `- cor do texto: "color: #ffffff"\n` +
+  `- negrito: "font-weight: bold"   |   itálico: "font-style: italic"\n` +
+  `- borda: "border: 1px solid #000000"\n` +
+  `- alinhar: "text-align: center"\n` +
+  `Combine várias com ";" — ex.: "background-color: #ef4444; color: white; font-weight: bold".\n` +
+  `Cores comuns: vermelho #ef4444, verde #22c55e, azul #3b82f6, amarelo #eab308, preto #000000, branco #ffffff.\n\n` +
+  `Exemplos:\n` +
+  `- "pinte A1:D1 de vermelho" → [{"cell":"A1:D1","style":"background-color: #ef4444"}]\n` +
+  `- "escreva Total em E1 em negrito" → [{"cell":"E1","value":"Total"},{"cell":"E1","style":"font-weight: bold"}]\n` +
+  `- "some a coluna A em A10" → [{"cell":"A10","value":"=SUM(A1:A9)"}]\n\n` +
+  `Faça exatamente o que foi pedido, da forma mais direta; não complique. ` +
+  `NUNCA escreva a formatação como conteúdo da célula (ex.: nunca use "value":"bg_color=red" nem "value":"border=1").\n` +
   `Para PERGUNTAS sobre os dados, responda só em texto, sem JSON.`;
