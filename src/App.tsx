@@ -71,6 +71,20 @@ function padGrid(grid: Grid): Grid {
   return out;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applyStyleToSelection(ws: any, prop: string, val: string) {
+  try {
+    const sel = ws.getSelection?.();
+    if (!sel) return;
+    const [x1, y1, x2, y2] = sel;
+    for (let y = y1; y <= y2; y++) {
+      for (let x = x1; x <= x2; x++) {
+        ws.setStyle(indexToCol(x) + (y + 1), prop, val);
+      }
+    }
+  } catch { /* ignore */ }
+}
+
 function App() {
   const sheetRef = useRef<SheetInstance | null>(null);
   const ws = () => sheetRef.current?.[0];
@@ -300,6 +314,44 @@ function App() {
         <div className="tb-sep" />
         <button className="tb-btn" onClick={() => setSettingsOpen(true)} title="Configurações">⚙</button>
         <button className={"tb-btn" + (aiOpen ? " is-active" : "")} onClick={() => setAiOpen((v) => !v)} title="IA local">✦ IA</button>
+      </div>
+
+      <div className="format-bar">
+        <select
+          className="tb-btn tb-select"
+          defaultValue=""
+          onChange={(e) => {
+            const w = ws();
+            if (w && e.target.value) applyStyleToSelection(w, "font-family", e.target.value);
+            e.target.value = "";
+          }}
+          title="Fonte"
+        >
+          <option value="">Fonte</option>
+          <option value="sans-serif">Sans-serif</option>
+          <option value="serif">Serif</option>
+          <option value="monospace">Monospace</option>
+          <option value="Arial">Arial</option>
+          <option value="Times New Roman">Times New Roman</option>
+          <option value="Courier New">Courier New</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Verdana">Verdana</option>
+        </select>
+        <select
+          className="tb-btn tb-select"
+          defaultValue=""
+          onChange={(e) => {
+            const w = ws();
+            if (w && e.target.value) applyStyleToSelection(w, "font-size", e.target.value + "px");
+            e.target.value = "";
+          }}
+          title="Tamanho da fonte"
+        >
+          <option value="">Tamanho</option>
+          {[8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 36, 48, 72].map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
       </div>
 
       <div className="formula-bar">
