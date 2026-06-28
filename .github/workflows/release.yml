@@ -91,5 +91,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cp "src-tauri/target/release/LocalSheets.exe" "LocalSheets_portable.exe"
+          exe=$(find src-tauri/target/release -maxdepth 1 -name '*.exe' | head -n1)
+          if [ -z "$exe" ]; then echo "executável portátil não encontrado em target/release"; ls -la src-tauri/target/release; exit 1; fi
+          echo "portátil: $exe"
+          cp "$exe" "LocalSheets_portable.exe"
           gh release upload "${{ github.ref_name }}" "LocalSheets_portable.exe" --clobber
