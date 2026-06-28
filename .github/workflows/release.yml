@@ -75,7 +75,6 @@ jobs:
 
             ### Downloads
             - **Windows — Instalador:** `*-setup.exe` (instala no sistema)
-            - **Windows — Portátil:** `LocalSheets_portable.exe` (não precisa instalar, só executar)
             - **Linux — AppImage:** `*.AppImage` (dê permissão de execução e rode)
             - **Linux — Debian/Ubuntu:** `*.deb`
 
@@ -84,15 +83,3 @@ jobs:
           prerelease: false
           includeUpdaterJson: false
           args: --bundles ${{ matrix.bundles }}
-
-      - name: Upload portable Windows executable
-        if: matrix.platform == 'windows-latest'
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          exe=$(find src-tauri/target/release -maxdepth 1 -name '*.exe' | head -n1)
-          if [ -z "$exe" ]; then echo "executável portátil não encontrado em target/release"; ls -la src-tauri/target/release; exit 1; fi
-          echo "portátil: $exe"
-          cp "$exe" "LocalSheets_portable.exe"
-          gh release upload "${{ github.ref_name }}" "LocalSheets_portable.exe" --clobber
