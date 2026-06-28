@@ -6,10 +6,21 @@ on:
       - "v*"
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  build:
     permissions:
       contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            rust-target: x86_64-pc-windows-msvc
+            bundles: nsis
+          - platform: ubuntu-22.04
+            rust-target: x86_64-unknown-linux-gnu
+            bundles: appimage,deb
+
+    runs-on: ${{ matrix.platform }}
 
     steps:
       - uses: actions/checkout@v4
@@ -23,18 +34,32 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-pc-windows-msvc
+          targets: ${{ matrix.rust-target }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
 
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libxdo-dev \
+            build-essential \
+            curl wget file
+
       - name: Install JS deps
         run: npm ci
 
       - name: Ensure binaries/llama exists (placeholder for build)
-        run: New-Item -ItemType Directory -Path src-tauri/binaries/llama -Force | Out-Null; New-Item -ItemType File -Path src-tauri/binaries/llama/.gitkeep -Force | Out-Null
+        shell: bash
+        run: mkdir -p src-tauri/binaries/llama && touch src-tauri/binaries/llama/.gitkeep
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
@@ -48,10 +73,23 @@ jobs:
 
             Planilha offline com IA local (llama.cpp / GGUF).
 
-            ### Instalação
-            Baixe o arquivo `.exe` abaixo e execute — não precisa instalar nada além.
+            ### Downloads
+            - **Windows — Instalador:** `*-setup.exe` (instala no sistema)
+            - **Windows — Portátil:** `LocalSheets_portable.exe` (não precisa instalar, só executar)
+            - **Linux — AppImage:** `*.AppImage` (dê permissão de execução e rode)
+            - **Linux — Debian/Ubuntu:** `*.deb`
 
             > **IA:** coloque seus modelos `.gguf` numa pasta, clique **+ IA**, escaneie e inicie.
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: false
+          args: --bundles ${{ matrix.bundles }}
+
+      - name: Upload portable Windows executable
+        if: matrix.platform == 'windows-latest'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp "src-tauri/target/release/LocalSheets.exe" "LocalSheets_portable.exe"
+          gh release upload "${{ github.ref_name }}" "LocalSheets_portable.exe" --clobber
