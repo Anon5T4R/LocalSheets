@@ -2,23 +2,21 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { ask } from "@tauri-apps/plugin-dialog";
-import { Spreadsheet, SheetInstance, MIN_COLS, MIN_ROWS } from "./Spreadsheet";
+import { Spreadsheet, SheetHandle, MIN_COLS, MIN_ROWS } from "./Spreadsheet";
 import { SheetAiPanel } from "./ai/SheetAiPanel";
 import { CellEdit } from "./lib/ai";
 import {
   Grid,
+  NamedSheet,
   baseName,
+  fmtFromPath,
   loadSheetPath,
   openSheet,
-  saveSheetAs,
+  pickSavePath,
   saveSheetTo,
 } from "./lib/sheet-io";
 import { Settings, Theme, applyTheme, loadSettings, saveSettings } from "./lib/settings";
 import "./App.css";
-
-function fmtFromPath(path: string | null): "csv" | "xlsx" {
-  return path && path.toLowerCase().endsWith(".csv") ? "csv" : "xlsx";
-}
 
 function colToIndex(col: string): number {
   let n = 0;
@@ -55,22 +53,6 @@ function expandRange(ref: string): string[] {
   return cells;
 }
 
-// Ensure a grid fills at least the default viewport (a 1x1 or sparse grid would
-// render collapsed). Existing data wider/taller than the minimum is kept.
-function padGrid(grid: Grid): Grid {
-  const rows = Math.max(grid.length, MIN_ROWS);
-  let cols = MIN_COLS;
-  for (const r of grid) if (r && r.length > cols) cols = r.length;
-  const out: Grid = [];
-  for (let y = 0; y < rows; y++) {
-    const src = grid[y] || [];
-    const row: Grid[number] = [];
-    for (let x = 0; x < cols; x++) row.push(src[x] ?? "");
-    out.push(row);
-  }
-  return out;
-}
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function applyStyleToSelection(ws: any, prop: string, val: string) {
   try {
@@ -85,9 +67,18 @@ function applyStyleToSelection(ws: any, prop: string, val: string) {
   } catch { /* ignore */ }
 }
 
+const EMPTY_DOC: NamedSheet[] = [
+  {
+    name: "Planilha1",
+    data: Array.from({ length: MIN_ROWS }, () => Array.from({ length: MIN_COLS }, () => "")),
+  },
+];
+
 function App() {
-  const sheetRef = useRef<SheetInstance | null>(null);
-  const ws = () => sheetRef.current?.[0];
+  const sheetRef = useRef<SheetHandle | null>(null);
+  // Always the *active* worksheet — saving, AI and the formula bar follow the
+  // tab the user is on.
+  const ws = () => sheetRef.current?.active();
 
   const [filePath, setFilePath] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -122,7 +113,11 @@ function App() {
     setSettings(saveSettings(patch));
   }, []);
 
-  const getData = useCallback((): Grid => (ws()?.getData() as Grid) ?? [], []);
+  // Displayed (computed) values of the active worksheet — what the AI sees.
+  const getAiGrid = useCallback(
+    (): Grid => (ws()?.getData(false, true) as Grid) ?? [],
+    []
+  );
 
   // --- Formula bar ---
   const handleSelect = useCallback((cell: string, raw: string) => {
@@ -185,12 +180,12 @@ function App() {
     });
   }, []);
 
-  const loadGrid = useCallback((grid: Grid, path: string | null) => {
-    const w = ws();
-    if (!w) return;
+  const loadDoc = useCallback((sheets: NamedSheet[], path: string | null) => {
+    const h = sheetRef.current;
+    if (!h) return;
     loadingRef.current = true;
     try {
-      w.setData(padGrid(grid));
+      h.load(sheets);
     } catch {
       /* ignore */
     }
@@ -202,41 +197,59 @@ function App() {
   const handleOpen = useCallback(async () => {
     try {
       const f = await openSheet();
-      if (f) loadGrid(f.data, f.path);
+      if (f) loadDoc(f.sheets, f.path);
     } catch (e) {
       await ask(`Não foi possível abrir:\n${e}`, { title: "LocalSheets", kind: "error" });
     }
-  }, [loadGrid]);
+  }, [loadDoc]);
 
   const handleNew = useCallback(() => {
-    loadGrid(
-      Array.from({ length: MIN_ROWS }, () => Array.from({ length: MIN_COLS }, () => "")),
-      null
-    );
-  }, [loadGrid]);
+    loadDoc(EMPTY_DOC, null);
+  }, [loadDoc]);
+
+  // Collect what should be written for `path`: every worksheet for XLSX, or
+  // just the active one for CSV (confirming with the user when others exist).
+  const collectForSave = useCallback(async (path: string) => {
+    const h = sheetRef.current;
+    if (!h) return null;
+    const sheets = h.sheets();
+    if (fmtFromPath(path) !== "csv") return sheets;
+    if (sheets.length > 1) {
+      const ok = await ask(
+        "O formato CSV salva apenas a planilha ativa — as outras abas ficarão de fora.\nContinuar?",
+        { title: "LocalSheets", kind: "warning" }
+      );
+      if (!ok) return null;
+    }
+    return [sheets[h.activeIndex()] ?? sheets[0]];
+  }, []);
 
   const handleSaveAs = useCallback(async () => {
     const suggested = filePath ? baseName(filePath) : "planilha.xlsx";
     try {
-      const p = await saveSheetAs(getData(), suggested);
-      if (p) {
-        setFilePath(p);
-        setDirty(false);
-      }
-    } catch (e) {
-      await ask(`Não foi possível salvar:\n${e}`, { title: "LocalSheets", kind: "error" });
-    }
-  }, [filePath, getData]);
-
-  const handleSave = useCallback(async () => {
-    if (!filePath) return handleSaveAs();
-    try {
-      await saveSheetTo(filePath, getData());
+      const p = await pickSavePath(suggested);
+      if (!p) return;
+      const picked = await collectForSave(p);
+      if (!picked) return;
+      await saveSheetTo(p, picked);
+      setFilePath(p);
       setDirty(false);
     } catch (e) {
       await ask(`Não foi possível salvar:\n${e}`, { title: "LocalSheets", kind: "error" });
     }
-  }, [filePath, getData, handleSaveAs]);
+  }, [filePath, collectForSave]);
+
+  const handleSave = useCallback(async () => {
+    if (!filePath) return handleSaveAs();
+    try {
+      const picked = await collectForSave(filePath);
+      if (!picked) return;
+      await saveSheetTo(filePath, picked);
+      setDirty(false);
+    } catch (e) {
+      await ask(`Não foi possível salvar:\n${e}`, { title: "LocalSheets", kind: "error" });
+    }
+  }, [filePath, collectForSave, handleSaveAs]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -265,16 +278,16 @@ function App() {
     openedStartup.current = true;
     invoke<string | null>("get_startup_file")
       .then((p) => {
-        if (p) loadSheetPath(p).then((f) => loadGrid(f.data, f.path)).catch(() => {});
+        if (p) loadSheetPath(p).then((f) => loadDoc(f.sheets, f.path)).catch(() => {});
       })
       .catch(() => {});
     const un = listen<string>("open-file", (e) => {
-      if (e.payload) loadSheetPath(e.payload).then((f) => loadGrid(f.data, f.path)).catch(() => {});
+      if (e.payload) loadSheetPath(e.payload).then((f) => loadDoc(f.sheets, f.path)).catch(() => {});
     });
     return () => {
       un.then((f) => f());
     };
-  }, [loadGrid]);
+  }, [loadDoc]);
 
   // Confirm-on-close (Rust prevents the close and emits this).
   useEffect(() => {
@@ -298,7 +311,7 @@ function App() {
   }, []);
 
   const fileName = filePath ? baseName(filePath) : "sem título";
-  const fmt = fmtFromPath(filePath);
+  const fmt = filePath ? fmtFromPath(filePath) : "xlsx";
 
   return (
     <div className="app">
@@ -393,8 +406,8 @@ function App() {
       <div className="workspace">
         <div className="sheet-wrap">
           <Spreadsheet
-            onReady={(inst) => {
-              sheetRef.current = inst;
+            onReady={(handle) => {
+              sheetRef.current = handle;
             }}
             onChange={markDirty}
             onSelect={handleSelect}
@@ -402,7 +415,7 @@ function App() {
         </div>
         {aiOpen && (
           <SheetAiPanel
-            getData={getData}
+            getData={getAiGrid}
             applyEdits={applyEdits}
             settings={settings}
             onPersist={updateSettings}

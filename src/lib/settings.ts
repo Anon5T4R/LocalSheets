@@ -8,10 +8,10 @@ export interface Settings {
   theme: Theme;
 }
 
-export const DEFAULT_MODELS_DIR = "D:\\LocalAIModels\\.lmstudio\\hub\\models";
-
 const DEFAULTS: Settings = {
-  modelsDir: DEFAULT_MODELS_DIR,
+  // No default — every machine keeps models somewhere else; the AI panel has a
+  // folder picker.
+  modelsDir: "",
   lastModelPath: "",
   ngl: 0,
   ctx: 4096,

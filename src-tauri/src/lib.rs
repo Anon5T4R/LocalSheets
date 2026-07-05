@@ -129,11 +129,41 @@ fn resolve_llama_server(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Err("llama-server não encontrado (runtime de IA ausente)".into())
 }
 
-fn wait_for_port(port: u16, secs: u64) -> Result<(), String> {
+/// First port in the range we can bind right now. Fixed ports collide with
+/// other apps (or an orphaned llama-server from a crash) and, worse, a busy
+/// port would make us health-check somebody else's server.
+fn find_free_port() -> Result<u16, String> {
+    for port in 8099..8149u16 {
+        if std::net::TcpListener::bind(("127.0.0.1", port)).is_ok() {
+            return Ok(port);
+        }
+    }
+    Err("nenhuma porta livre entre 8099 e 8148".into())
+}
+
+/// Wait for llama-server to accept connections, failing fast if the process
+/// dies first (bad model file, missing Vulkan runtime, …).
+fn wait_for_server(state: &Mutex<LlmState>, port: u16, secs: u64) -> Result<(), String> {
     let addr: SocketAddr = ([127, 0, 0, 1], port).into();
     for _ in 0..(secs * 4) {
         if TcpStream::connect_timeout(&addr, Duration::from_millis(200)).is_ok() {
             return Ok(());
+        }
+        if let Ok(mut s) = state.lock() {
+            match s.child.as_mut() {
+                Some(child) => {
+                    if let Ok(Some(status)) = child.try_wait() {
+                        s.child = None;
+                        s.model.clear();
+                        return Err(format!(
+                            "llama-server terminou inesperadamente ({}) — modelo incompatível ou memória insuficiente?",
+                            status
+                        ));
+                    }
+                }
+                // stop_llm ran while we were waiting.
+                None => return Err("llama-server foi interrompido".into()),
+            }
         }
         std::thread::sleep(Duration::from_millis(250));
     }
@@ -159,7 +189,7 @@ fn start_llm(
 
     let exe = resolve_llama_server(&app)?;
     let dir = exe.parent().ok_or("diretório do llama inválido")?.to_path_buf();
-    let port: u16 = 8099;
+    let port: u16 = find_free_port()?;
 
     let mut cmd = Command::new(&exe);
     cmd.current_dir(&dir).args([
@@ -189,7 +219,18 @@ fn start_llm(
         s.port = port;
         s.model = model_path;
     }
-    wait_for_port(port, 180)?;
+    if let Err(e) = wait_for_server(&state, port, 180) {
+        // Don't leave a half-loaded server running with nobody pointing at it.
+        if let Ok(mut s) = state.lock() {
+            if let Some(child) = s.child.as_mut() {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
+            s.child = None;
+            s.model.clear();
+        }
+        return Err(e);
+    }
     Ok(port)
 }
 
@@ -207,12 +248,16 @@ fn stop_llm(state: State<'_, Mutex<LlmState>>) -> Result<(), String> {
 
 #[tauri::command]
 fn llm_status(state: State<'_, Mutex<LlmState>>) -> LlmStatus {
-    let mut s = state.lock().expect("estado da IA");
-    let running = match s.child.as_mut() {
-        Some(child) => matches!(child.try_wait(), Ok(None)),
-        None => false,
-    };
-    LlmStatus { running, port: s.port, model: s.model.clone() }
+    match state.lock() {
+        Ok(mut s) => {
+            let running = match s.child.as_mut() {
+                Some(child) => matches!(child.try_wait(), Ok(None)),
+                None => false,
+            };
+            LlmStatus { running, port: s.port, model: s.model.clone() }
+        }
+        Err(_) => LlmStatus { running: false, port: 0, model: String::new() },
+    }
 }
 
 #[tauri::command]

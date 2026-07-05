@@ -1,16 +1,25 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import * as XLSX from "xlsx";
+import {
+  Cell,
+  Grid,
+  NamedSheet,
+  SheetOut,
+  sheetToCsv,
+  sheetToGrid,
+  sheetsToWorkbook,
+  workbookToSheets,
+} from "./sheet-codec";
 
-export type Cell = string | number;
-export type Grid = Cell[][];
+export type { Cell, Grid, NamedSheet, SheetOut };
 
-export interface SheetFile {
+export interface SheetDoc {
   path: string;
-  data: Grid;
+  sheets: NamedSheet[];
 }
 
-function fmtFromPath(path: string): "csv" | "xlsx" {
+export function fmtFromPath(path: string): "csv" | "xlsx" {
   return path.toLowerCase().endsWith(".csv") ? "csv" : "xlsx";
 }
 
@@ -18,22 +27,21 @@ export function baseName(path: string): string {
   return path.split(/[\\/]/).pop() ?? path;
 }
 
-export async function loadSheetPath(path: string): Promise<SheetFile> {
-  const fmt = fmtFromPath(path);
-  let wb: XLSX.WorkBook;
-  if (fmt === "csv") {
+export async function loadSheetPath(path: string): Promise<SheetDoc> {
+  if (fmtFromPath(path) === "csv") {
     const text = await invoke<string>("read_text_file", { path });
-    wb = XLSX.read(text, { type: "string" });
-  } else {
-    const b64 = await invoke<string>("read_file_base64", { path });
-    wb = XLSX.read(b64, { type: "base64" });
+    const wb = XLSX.read(text, { type: "string" });
+    return {
+      path,
+      sheets: [{ name: "Planilha1", data: sheetToGrid(wb.Sheets[wb.SheetNames[0]]) }],
+    };
   }
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  const data = XLSX.utils.sheet_to_json<Cell[]>(ws, { header: 1, defval: "" });
-  return { path, data };
+  const b64 = await invoke<string>("read_file_base64", { path });
+  const wb = XLSX.read(b64, { type: "base64" });
+  return { path, sheets: workbookToSheets(wb) };
 }
 
-export async function openSheet(): Promise<SheetFile | null> {
+export async function openSheet(): Promise<SheetDoc | null> {
   const selected = await openDialog({
     multiple: false,
     filters: [
@@ -45,44 +53,27 @@ export async function openSheet(): Promise<SheetFile | null> {
   return loadSheetPath(selected);
 }
 
-// Drop trailing all-empty rows/columns so the padded display grid doesn't
-// bloat the saved file with thousands of empty cells.
-function trimGrid(data: Grid): Grid {
-  let lastRow = -1;
-  let lastCol = -1;
-  data.forEach((row, r) =>
-    row?.forEach((c, ci) => {
-      if (c !== "" && c != null) {
-        if (r > lastRow) lastRow = r;
-        if (ci > lastCol) lastCol = ci;
-      }
-    })
-  );
-  if (lastRow < 0) return [[""]];
-  return data.slice(0, lastRow + 1).map((row) => row.slice(0, lastCol + 1));
-}
-
-export async function saveSheetTo(path: string, data: Grid): Promise<void> {
-  const ws = XLSX.utils.aoa_to_sheet(trimGrid(data));
+/**
+ * Save every worksheet to XLSX (formulas persisted via `cell.f`), or the
+ * single given sheet's displayed values to CSV — the caller picks which
+ * sheet goes into a CSV.
+ */
+export async function saveSheetTo(path: string, sheets: SheetOut[]): Promise<void> {
   if (fmtFromPath(path) === "csv") {
-    await invoke("write_text_file", { path, contents: XLSX.utils.sheet_to_csv(ws) });
+    await invoke("write_text_file", { path, contents: sheetToCsv(sheets[0]) });
   } else {
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Planilha1");
-    const b64 = XLSX.write(wb, { type: "base64", bookType: "xlsx" });
+    const b64 = XLSX.write(sheetsToWorkbook(sheets), { type: "base64", bookType: "xlsx" });
     await invoke("write_file_base64", { path, base64Data: b64 });
   }
 }
 
-export async function saveSheetAs(data: Grid, suggested = "planilha.xlsx"): Promise<string | null> {
-  const path = await saveDialog({
+/** "Save as" dialog — returns the chosen path without writing anything. */
+export async function pickSavePath(suggested = "planilha.xlsx"): Promise<string | null> {
+  return saveDialog({
     defaultPath: suggested,
     filters: [
       { name: "Excel", extensions: ["xlsx"] },
       { name: "CSV", extensions: ["csv"] },
     ],
   });
-  if (!path) return null;
-  await saveSheetTo(path, data);
-  return path;
 }

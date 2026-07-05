@@ -148,6 +148,8 @@ export function sheetToContext(data: Grid, maxRows = 40, maxCols = 20): string {
     });
   });
   if (lastRow < 0) return "(planilha vazia)";
+  const fullLastRow = lastRow;
+  const fullLastCol = lastCol;
   lastRow = Math.min(lastRow, maxRows - 1);
   lastCol = Math.min(lastCol, maxCols - 1);
 
@@ -162,6 +164,15 @@ export function sheetToContext(data: Grid, maxRows = 40, maxCols = 20): string {
       line += " " + v + " |";
     }
     lines.push(line);
+  }
+  // The model must know when it is seeing a cropped view — otherwise it will
+  // happily "total" only the visible slice and get the answer silently wrong.
+  if (fullLastRow > lastRow || fullLastCol > lastCol) {
+    lines.push(
+      `\nATENÇÃO: recorte parcial — exibindo até ${colLetter(lastCol)}${lastRow + 1}, ` +
+        `mas os dados vão até ${colLetter(fullLastCol)}${fullLastRow + 1}. ` +
+        `Considere o intervalo completo ao criar fórmulas.`
+    );
   }
   return lines.join("\n");
 }

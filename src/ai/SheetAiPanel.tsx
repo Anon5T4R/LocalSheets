@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import {
   ChatMsg,
   CellEdit,
@@ -57,19 +58,35 @@ export function SheetAiPanel({ getData, applyEdits, settings, onPersist, onClose
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages]);
 
-  const scan = useCallback(async () => {
-    try {
-      const found = await listModels(dir);
-      setModels(found);
-      const firstChat = found.find((m) => !m.is_projector);
-      if (firstChat && !modelPath) setModelPath(firstChat.path);
-    } catch (e) {
-      setStatusMsg(String(e));
-    }
-  }, [dir, modelPath]);
+  const scanDir = useCallback(
+    async (target: string) => {
+      if (!target.trim()) {
+        setStatusMsg("Escolha a pasta onde estão seus modelos .gguf.");
+        return;
+      }
+      try {
+        const found = await listModels(target);
+        setModels(found);
+        setStatusMsg(found.length ? "" : "Nenhum .gguf encontrado nessa pasta.");
+        const firstChat = found.find((m) => !m.is_projector);
+        if (firstChat && !modelPath) setModelPath(firstChat.path);
+      } catch (e) {
+        setStatusMsg(String(e));
+      }
+    },
+    [modelPath]
+  );
+
+  const browseDir = useCallback(async () => {
+    const picked = await openDialog({ directory: true, title: "Pasta de modelos .gguf" });
+    if (typeof picked !== "string" || !picked) return;
+    setDir(picked);
+    onPersist({ modelsDir: picked });
+    scanDir(picked);
+  }, [onPersist, scanDir]);
 
   useEffect(() => {
-    scan();
+    if (settings.modelsDir) scanDir(settings.modelsDir);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -166,8 +183,14 @@ export function SheetAiPanel({ getData, applyEdits, settings, onPersist, onClose
         <label className="ai-field">
           <span>Pasta de modelos</span>
           <div className="ai-row">
-            <input value={dir} onChange={(e) => setDir(e.target.value)} spellCheck={false} />
-            <button className="tb-btn" onClick={scan}>Escanear</button>
+            <input
+              value={dir}
+              onChange={(e) => setDir(e.target.value)}
+              spellCheck={false}
+              placeholder="Pasta com modelos .gguf"
+            />
+            <button className="tb-btn" onClick={browseDir} title="Escolher pasta">…</button>
+            <button className="tb-btn" onClick={() => scanDir(dir)}>Escanear</button>
           </div>
         </label>
         <label className="ai-field">

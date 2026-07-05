@@ -5,16 +5,34 @@ import "jspreadsheet-ce/dist/jspreadsheet.themes.css";
 import "jsuites/dist/jsuites.css";
 import "material-icons/iconfont/material-icons.css";
 import { computeFormula } from "./lib/formula-fix";
+import type { Grid, NamedSheet, SheetOut } from "./lib/sheet-codec";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type SheetInstance = any;
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 // Default usable grid size for every worksheet.
 export const MIN_COLS = 26;
 export const MIN_ROWS = 100;
 
+/**
+ * Imperative facade over the jspreadsheet instance. All app-level operations
+ * (save, AI, formula bar) go through here so they always hit the *active*
+ * worksheet — never a stale reference to worksheet 0.
+ */
+export interface SheetHandle {
+  /** The currently active worksheet instance. */
+  active(): any;
+  /** Index of the active worksheet. */
+  activeIndex(): number;
+  /** Number of worksheets. */
+  count(): number;
+  /** Every worksheet's name + raw (formulas) and computed (displayed) data. */
+  sheets(): SheetOut[];
+  /** Replace the whole document (rebuilds the spreadsheet). */
+  load(sheets: NamedSheet[]): void;
+}
+
 interface SpreadsheetProps {
-  onReady: (instance: SheetInstance) => void;
+  onReady: (handle: SheetHandle) => void;
   onChange?: () => void;
   /** Fires with the active cell's name and its raw content (formula or value). */
   onSelect?: (cell: string, raw: string) => void;
@@ -31,12 +49,47 @@ function colLetter(index: number): string {
   return s;
 }
 
+// Ensure a grid fills at least the default viewport and is rectangular —
+// jspreadsheet normalizes row lengths from the widest row, so ragged input
+// from sparse files would render unevenly.
+function padGrid(grid: Grid): Grid {
+  const rows = Math.max(grid.length, MIN_ROWS);
+  let cols = MIN_COLS;
+  for (const r of grid) if (r && r.length > cols) cols = r.length;
+  const out: Grid = [];
+  for (let y = 0; y < rows; y++) {
+    const src = grid[y] || [];
+    const row: Grid[number] = [];
+    for (let x = 0; x < cols; x++) row.push(src[x] ?? "");
+    out.push(row);
+  }
+  return out;
+}
+
+// User-visible tab titles. Double-click renames only update the tab DOM (the
+// jsuites tabs widget), not options.worksheetName, so the DOM is the source of
+// truth for names — with options.worksheetName as the fallback.
+function tabTitles(spreadsheet: any): string[] {
+  try {
+    // Only the spreadsheet's own tab strip (a direct child) — the toolbar's
+    // color picker nests another jsuites tabs widget deeper in the element.
+    const nodes =
+      spreadsheet?.element?.querySelectorAll?.(
+        ":scope > .jtabs-headers-container .jtabs-headers > div"
+      ) ?? [];
+    return Array.from(nodes as NodeListOf<HTMLElement>)
+      .filter((n) => !n.classList.contains("jtabs-border") && !n.classList.contains("jtabs-add"))
+      .map((n) => n.textContent?.trim() ?? "");
+  } catch {
+    return [];
+  }
+}
+
 // Remove every border style the toolbar may have set on the current selection.
 // jspreadsheet applies borders as separate side properties, so clearing the
 // `border` shorthand alone doesn't work — we have to reset each side too.
 const BORDER_KEYS = ["border", "border-top", "border-right", "border-bottom", "border-left"];
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function clearBorders(ws: any) {
   try {
     const sel = ws.getSelection?.(); // [x1, y1, x2, y2]
@@ -60,7 +113,6 @@ function clearBorders(ws: any) {
 // fires `onchangestyle` with those attempted declarations, so we catch them here
 // and clear the offending border properties on the cell element for real. This
 // fixes both the toolbar control and our right-click "Limpar bordas" item.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function repairBorderClear(ws: any, records: Record<string, string>) {
   if (!records || typeof records !== "object") return;
   for (const cell in records) {
@@ -90,23 +142,30 @@ export function Spreadsheet({ onReady, onChange, onSelect }: SpreadsheetProps) {
   changeRef.current = onChange;
   const selectRef = useRef(onSelect);
   selectRef.current = onSelect;
+  // The spreadsheet-level instance (worksheet.parent) of the current build.
+  const spreadRef = useRef<any>(null);
   const activeCell = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Push the active cell's raw content (formula or value) to the formula bar.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const emitSelection = (ws: any, x: number, y: number) => {
     activeCell.current = { x, y };
     const raw = ws.getValueFromCoords(x, y, false);
     selectRef.current?.(colLetter(x) + (y + 1), raw == null ? "" : String(raw));
   };
 
-  useEffect(() => {
+  const build = (sheets: NamedSheet[]) => {
     const el = ref.current;
     if (!el) return;
+    try {
+      jspreadsheet.destroy(el as any);
+    } catch {
+      /* first build */
+    }
+    el.innerHTML = "";
+    const list = sheets.length ? sheets : [{ name: "Planilha1", data: [] as Grid }];
     const instance = jspreadsheet(el, {
       tabs: true,
       toolbar: true,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onchange: (ws: any) => {
         changeRef.current?.();
         // Refresh the bar (covers grid edits and AI edits to the active cell).
@@ -114,14 +173,11 @@ export function Spreadsheet({ onReady, onChange, onSelect }: SpreadsheetProps) {
         emitSelection(ws, x, y);
       },
       onafterchanges: () => changeRef.current?.(),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onselection: (ws: any, x1: number, y1: number) => emitSelection(ws, x1, y1),
       // Fix borders that the toolbar / context menu fail to actually clear.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onchangestyle: (ws: any, records: Record<string, string>) => repairBorderClear(ws, records),
       // New worksheets (the "+" tab) are created tiny (10x15) or empty; pad them
       // to a full grid so every sheet looks like the first one.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       oncreateworksheet: (worksheet: any) => {
         setTimeout(() => {
           try {
@@ -135,11 +191,9 @@ export function Spreadsheet({ onReady, onChange, onSelect }: SpreadsheetProps) {
         }, 0);
       },
       // Take over lookup/conditional functions the basic engine computes wrong.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onbeforeformula: (ws: any, expression: string, x?: number, y?: number) =>
         computeFormula(ws, expression, x, y),
       // Extend the right-click menu: manage worksheets (tabs) and clear borders.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       contextMenu: (ws: any, _x: any, _y: any, _e: any, items: any[], role: string) => {
         const base = Array.isArray(items) ? items : [];
         if (role === "tabs") {
@@ -170,22 +224,61 @@ export function Spreadsheet({ onReady, onChange, onSelect }: SpreadsheetProps) {
           { title: "Limpar bordas da seleção", onclick: () => clearBorders(ws) },
         ];
       },
-      worksheets: [
-        {
-          minDimensions: [MIN_COLS, MIN_ROWS],
-          worksheetName: "Planilha1",
-        },
-      ],
+      worksheets: list.map((s, i) => ({
+        minDimensions: [MIN_COLS, MIN_ROWS] as [number, number],
+        worksheetName: s.name || `Planilha${i + 1}`,
+        data: padGrid(s.data),
+      })),
     });
-    onReady(instance);
+    spreadRef.current = (instance as any)?.[0]?.parent ?? null;
+    activeCell.current = { x: 0, y: 0 };
+  };
+
+  useEffect(() => {
+    build([]);
+
+    const handle: SheetHandle = {
+      active() {
+        const sp = spreadRef.current;
+        if (!sp) return undefined;
+        const i = sp.getWorksheetActive?.() ?? 0;
+        return sp.worksheets?.[i] ?? sp.worksheets?.[0];
+      },
+      activeIndex() {
+        return spreadRef.current?.getWorksheetActive?.() ?? 0;
+      },
+      count() {
+        return spreadRef.current?.worksheets?.length ?? 0;
+      },
+      sheets() {
+        const sp = spreadRef.current;
+        if (!sp?.worksheets) return [];
+        const titles = tabTitles(sp);
+        return sp.worksheets.map((w: any, i: number) => ({
+          name: titles[i] || w.options?.worksheetName || `Planilha${i + 1}`,
+          raw: (w.getData(false, false) as Grid) ?? [],
+          computed: (w.getData(false, true) as Grid) ?? [],
+        }));
+      },
+      load(sheets) {
+        build(sheets);
+        // Reset the formula bar to A1 of the first worksheet.
+        const first = spreadRef.current?.worksheets?.[0];
+        if (first) emitSelection(first, 0, 0);
+      },
+    };
+    onReady(handle);
+
     return () => {
+      const el = ref.current;
+      if (!el) return;
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         jspreadsheet.destroy(el as any);
       } catch {
         /* ignore */
       }
       el.innerHTML = "";
+      spreadRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
