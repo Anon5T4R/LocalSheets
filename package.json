@@ -1,5 +1,5 @@
 {
-  "name": "sheets",
+  "name": "localsheets",
   "private": true,
   "version": "0.4.0",
   "type": "module",
