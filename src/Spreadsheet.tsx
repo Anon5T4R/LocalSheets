@@ -5,6 +5,7 @@ import "jspreadsheet-ce/dist/jspreadsheet.themes.css";
 import "jsuites/dist/jsuites.css";
 import "material-icons/iconfont/material-icons.css";
 import { computeFormula } from "./lib/formula-fix";
+import { t } from "./lib/i18n";
 import type { Grid, NamedSheet, SheetOut } from "./lib/sheet-codec";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -201,12 +202,12 @@ export function Spreadsheet({ onReady, onChange, onSelect }: SpreadsheetProps) {
           return [
             ...base,
             {
-              title: "Excluir planilha",
+              title: t("ctx.deleteSheet"),
               onclick: () => {
                 try {
                   const count = ws.parent?.worksheets?.length ?? 1;
                   if (count <= 1) {
-                    alert("Não é possível excluir a única planilha.");
+                    alert(t("ctx.cantDeleteOnly"));
                     return;
                   }
                   ws.deleteWorksheet(ws.getWorksheetActive());
@@ -221,7 +222,7 @@ export function Spreadsheet({ onReady, onChange, onSelect }: SpreadsheetProps) {
         return [
           ...base,
           { type: "line" as const, title: "" },
-          { title: "Limpar bordas da seleção", onclick: () => clearBorders(ws) },
+          { title: t("ctx.clearBorders"), onclick: () => clearBorders(ws) },
         ];
       },
       worksheets: list.map((s, i) => ({

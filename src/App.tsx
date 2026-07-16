@@ -16,6 +16,8 @@ import {
   saveSheetTo,
 } from "./lib/sheet-io";
 import { Settings, Theme, applyTheme, loadSettings, saveSettings } from "./lib/settings";
+import { t as tr } from "./lib/i18n";
+import { LocalePicker } from "./components/LocalePicker";
 import "./App.css";
 
 function colToIndex(col: string): number {
@@ -199,7 +201,7 @@ function App() {
       const f = await openSheet();
       if (f) loadDoc(f.sheets, f.path);
     } catch (e) {
-      await ask(`Não foi possível abrir:\n${e}`, { title: "LocalSheets", kind: "error" });
+      await ask(tr("dlg.openFail", { e: String(e) }), { title: "LocalSheets", kind: "error" });
     }
   }, [loadDoc]);
 
@@ -215,10 +217,7 @@ function App() {
     const sheets = h.sheets();
     if (fmtFromPath(path) !== "csv") return sheets;
     if (sheets.length > 1) {
-      const ok = await ask(
-        "O formato CSV salva apenas a planilha ativa — as outras abas ficarão de fora.\nContinuar?",
-        { title: "LocalSheets", kind: "warning" }
-      );
+      const ok = await ask(tr("dlg.csvWarn"), { title: "LocalSheets", kind: "warning" });
       if (!ok) return null;
     }
     return [sheets[h.activeIndex()] ?? sheets[0]];
@@ -235,7 +234,7 @@ function App() {
       setFilePath(p);
       setDirty(false);
     } catch (e) {
-      await ask(`Não foi possível salvar:\n${e}`, { title: "LocalSheets", kind: "error" });
+      await ask(tr("dlg.saveFail", { e: String(e) }), { title: "LocalSheets", kind: "error" });
     }
   }, [filePath, collectForSave]);
 
@@ -247,7 +246,7 @@ function App() {
       await saveSheetTo(filePath, picked);
       setDirty(false);
     } catch (e) {
-      await ask(`Não foi possível salvar:\n${e}`, { title: "LocalSheets", kind: "error" });
+      await ask(tr("dlg.saveFail", { e: String(e) }), { title: "LocalSheets", kind: "error" });
     }
   }, [filePath, collectForSave, handleSaveAs]);
 
@@ -294,8 +293,8 @@ function App() {
     const un = listen("close-requested", async () => {
       try {
         if (dirtyRef.current) {
-          const ok = await ask("A planilha tem alterações não salvas.\nSair mesmo assim?", {
-            title: "Sair do LocalSheets",
+          const ok = await ask(tr("dlg.exitConfirm"), {
+            title: tr("dlg.exitTitle"),
             kind: "warning",
           });
           if (!ok) return;
@@ -310,7 +309,7 @@ function App() {
     };
   }, []);
 
-  const fileName = filePath ? baseName(filePath) : "sem título";
+  const fileName = filePath ? baseName(filePath) : tr("tb.untitled");
   const fmt = filePath ? fmtFromPath(filePath) : "xlsx";
 
   return (
@@ -318,15 +317,16 @@ function App() {
       <div className="menubar">
         <span className="brand">LocalSheets</span>
         <div className="tb-sep" />
-        <button className="tb-btn" onClick={handleNew} title="Nova planilha">Novo</button>
-        <button className="tb-btn" onClick={handleOpen} title="Abrir (Ctrl+O)">Abrir</button>
-        <button className="tb-btn" onClick={handleSave} title="Salvar (Ctrl+S)">Salvar</button>
-        <button className="tb-btn" onClick={handleSaveAs} title="Salvar como (Ctrl+Shift+S)">Salvar como…</button>
+        <button className="tb-btn" onClick={handleNew} title={tr("tb.newTitle")}>{tr("tb.new")}</button>
+        <button className="tb-btn" onClick={handleOpen} title={tr("tb.openTitle")}>{tr("tb.open")}</button>
+        <button className="tb-btn" onClick={handleSave} title={tr("tb.saveTitle")}>{tr("tb.save")}</button>
+        <button className="tb-btn" onClick={handleSaveAs} title={tr("tb.saveAsTitle")}>{tr("tb.saveAs")}</button>
         <div className="tb-spacer" />
         <span className="filename" title={fileName}>{dirty ? "● " : ""}{fileName} · {fmt.toUpperCase()}</span>
         <div className="tb-sep" />
-        <button className="tb-btn" onClick={() => setSettingsOpen(true)} title="Configurações">⚙</button>
-        <button className={"tb-btn" + (aiOpen ? " is-active" : "")} onClick={() => setAiOpen((v) => !v)} title="IA local">✦ IA</button>
+        <LocalePicker />
+        <button className="tb-btn" onClick={() => setSettingsOpen(true)} title={tr("tb.settingsTitle")}>⚙</button>
+        <button className={"tb-btn" + (aiOpen ? " is-active" : "")} onClick={() => setAiOpen((v) => !v)} title={tr("tb.aiTitle")}>{tr("tb.ai")}</button>
       </div>
 
       <div className="format-bar">
@@ -338,9 +338,9 @@ function App() {
             if (w && e.target.value) applyStyleToSelection(w, "font-family", e.target.value);
             e.target.value = "";
           }}
-          title="Fonte"
+          title={tr("fmt.fontTitle")}
         >
-          <option value="">Fonte</option>
+          <option value="">{tr("fmt.font")}</option>
           <option value="sans-serif">Sans-serif</option>
           <option value="serif">Serif</option>
           <option value="monospace">Monospace</option>
@@ -358,9 +358,9 @@ function App() {
             if (w && e.target.value) applyStyleToSelection(w, "font-size", e.target.value + "px");
             e.target.value = "";
           }}
-          title="Tamanho da fonte"
+          title={tr("fmt.sizeTitle")}
         >
-          <option value="">Tamanho</option>
+          <option value="">{tr("fmt.size")}</option>
           {[8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 36, 48, 72].map((s) => (
             <option key={s} value={s}>{s}</option>
           ))}
@@ -380,7 +380,7 @@ function App() {
             }
           }}
           spellCheck={false}
-          title="Ir para a célula"
+          title={tr("fx.gotoTitle")}
         />
         <span className="fx-label">fx</span>
         <input
@@ -399,7 +399,7 @@ function App() {
             }
           }}
           spellCheck={false}
-          placeholder="Valor ou fórmula (=…)"
+          placeholder={tr("fx.placeholder")}
         />
       </div>
 
@@ -445,17 +445,17 @@ function SettingsModal({
   onClose: () => void;
 }) {
   const opts: { id: Theme; label: string }[] = [
-    { id: "system", label: "Sistema" },
-    { id: "light", label: "Claro" },
-    { id: "dark", label: "Escuro" },
+    { id: "system", label: tr("set.system") },
+    { id: "light", label: tr("set.light") },
+    { id: "dark", label: tr("set.dark") },
   ];
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">Configurações</div>
+        <div className="modal-header">{tr("set.title")}</div>
         <div className="modal-body">
           <label className="modal-field">
-            <span>Tema</span>
+            <span>{tr("set.theme")}</span>
             <div className="seg">
               {opts.map((o) => (
                 <button
@@ -470,7 +470,7 @@ function SettingsModal({
           </label>
         </div>
         <div className="modal-footer">
-          <button className="tb-btn" onClick={onClose}>Fechar</button>
+          <button className="tb-btn" onClick={onClose}>{tr("common.close")}</button>
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Grid } from "./sheet-io";
+import { t } from "./i18n";
 
 export interface ModelInfo {
   name: string;
@@ -42,7 +43,7 @@ export async function waitHealthy(port: number, timeoutMs = 180000): Promise<voi
     } catch {
       /* warming up */
     }
-    if (Date.now() - start > timeoutMs) throw new Error("o modelo demorou demais para carregar");
+    if (Date.now() - start > timeoutMs) throw new Error(t("ai.err.timeout"));
     await new Promise((res) => setTimeout(res, 500));
   }
 }
@@ -73,7 +74,7 @@ export async function streamChat(
     }),
     signal: opts.signal,
   });
-  if (!res.ok || !res.body) throw new Error(`a IA respondeu ${res.status}`);
+  if (!res.ok || !res.body) throw new Error(t("ai.err.status", { status: res.status }));
 
   let inThink = false;
   const routeContent = (text: string) => {
@@ -135,7 +136,7 @@ function colLetter(index: number): string {
 
 /** Render the used range as a readable A1-addressed grid for the model. */
 export function sheetToContext(data: Grid, maxRows = 40, maxCols = 20): string {
-  if (!data || !data.length) return "(planilha vazia)";
+  if (!data || !data.length) return t("ai.ctx.empty");
   let lastRow = -1;
   let lastCol = -1;
   data.forEach((row, r) => {
@@ -147,7 +148,7 @@ export function sheetToContext(data: Grid, maxRows = 40, maxCols = 20): string {
       }
     });
   });
-  if (lastRow < 0) return "(planilha vazia)";
+  if (lastRow < 0) return t("ai.ctx.empty");
   const fullLastRow = lastRow;
   const fullLastCol = lastCol;
   lastRow = Math.min(lastRow, maxRows - 1);
@@ -169,9 +170,10 @@ export function sheetToContext(data: Grid, maxRows = 40, maxCols = 20): string {
   // happily "total" only the visible slice and get the answer silently wrong.
   if (fullLastRow > lastRow || fullLastCol > lastCol) {
     lines.push(
-      `\nATENÇÃO: recorte parcial — exibindo até ${colLetter(lastCol)}${lastRow + 1}, ` +
-        `mas os dados vão até ${colLetter(fullLastCol)}${fullLastRow + 1}. ` +
-        `Considere o intervalo completo ao criar fórmulas.`
+      t("ai.ctx.cropped", {
+        shown: `${colLetter(lastCol)}${lastRow + 1}`,
+        full: `${colLetter(fullLastCol)}${fullLastRow + 1}`,
+      })
     );
   }
   return lines.join("\n");
@@ -208,27 +210,4 @@ export function parseEdits(text: string): CellEdit[] {
   }
 }
 
-export const SHEET_SYSTEM = (context: string) =>
-  `Você é o assistente da planilha do LocalSheets. Estado atual (notação A1, colunas no topo, linhas à esquerda):\n\n${context}\n\n` +
-  `Para MODIFICAR a planilha, responda em duas partes:\n` +
-  `1) uma frase curta dizendo o que vai fazer;\n` +
-  `2) um bloco \`\`\`json com um array de edições.\n\n` +
-  `Cada edição é um objeto com "cell" e pelo menos um entre "value" e "style":\n` +
-  `- "cell": uma célula ("C2") ou um intervalo ("A1:D1").\n` +
-  `- "value": número, texto ou fórmula iniciada por "=" (ex.: "=A2+B2"). Use para CONTEÚDO.\n` +
-  `- "style": string CSS para FORMATAR (cor, borda, negrito, alinhamento).\n\n` +
-  `Propriedades CSS (use exatamente estes nomes):\n` +
-  `- cor de fundo: "background-color: #ef4444"\n` +
-  `- cor do texto: "color: #ffffff"\n` +
-  `- negrito: "font-weight: bold"   |   itálico: "font-style: italic"\n` +
-  `- borda: "border: 1px solid #000000"\n` +
-  `- alinhar: "text-align: center"\n` +
-  `Combine várias com ";" — ex.: "background-color: #ef4444; color: white; font-weight: bold".\n` +
-  `Cores comuns: vermelho #ef4444, verde #22c55e, azul #3b82f6, amarelo #eab308, preto #000000, branco #ffffff.\n\n` +
-  `Exemplos:\n` +
-  `- "pinte A1:D1 de vermelho" → [{"cell":"A1:D1","style":"background-color: #ef4444"}]\n` +
-  `- "escreva Total em E1 em negrito" → [{"cell":"E1","value":"Total"},{"cell":"E1","style":"font-weight: bold"}]\n` +
-  `- "some a coluna A em A10" → [{"cell":"A10","value":"=SUM(A1:A9)"}]\n\n` +
-  `Faça exatamente o que foi pedido, da forma mais direta; não complique. ` +
-  `NUNCA escreva a formatação como conteúdo da célula (ex.: nunca use "value":"bg_color=red" nem "value":"border=1").\n` +
-  `Para PERGUNTAS sobre os dados, responda só em texto, sem JSON.`;
+export const SHEET_SYSTEM = (context: string) => t("ai.system", { context });

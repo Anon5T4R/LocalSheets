@@ -124,6 +124,24 @@ body {
   white-space: nowrap;
 }
 
+/* Language selector (top bar) */
+.lang-select {
+  appearance: auto;
+  cursor: pointer;
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.lang-select option {
+  background: var(--panel);
+  color: var(--text);
+}
+
 /* Formula bar (Excel-style): name box + fx + editable formula/value */
 .formula-bar {
   display: flex;

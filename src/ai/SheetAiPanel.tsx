@@ -16,6 +16,7 @@ import {
 } from "../lib/ai";
 import { Grid } from "../lib/sheet-io";
 import { Settings } from "../lib/settings";
+import { t } from "../lib/i18n";
 
 type Status = "stopped" | "loading" | "ready" | "error";
 
@@ -61,13 +62,13 @@ export function SheetAiPanel({ getData, applyEdits, settings, onPersist, onClose
   const scanDir = useCallback(
     async (target: string) => {
       if (!target.trim()) {
-        setStatusMsg("Escolha a pasta onde estão seus modelos .gguf.");
+        setStatusMsg(t("ai.pickFolder"));
         return;
       }
       try {
         const found = await listModels(target);
         setModels(found);
-        setStatusMsg(found.length ? "" : "Nenhum .gguf encontrado nessa pasta.");
+        setStatusMsg(found.length ? "" : t("ai.noGguf"));
         const firstChat = found.find((m) => !m.is_projector);
         if (firstChat && !modelPath) setModelPath(firstChat.path);
       } catch (e) {
@@ -78,7 +79,7 @@ export function SheetAiPanel({ getData, applyEdits, settings, onPersist, onClose
   );
 
   const browseDir = useCallback(async () => {
-    const picked = await openDialog({ directory: true, title: "Pasta de modelos .gguf" });
+    const picked = await openDialog({ directory: true, title: t("ai.pickFolderTitle") });
     if (typeof picked !== "string" || !picked) return;
     setDir(picked);
     onPersist({ modelsDir: picked });
@@ -91,10 +92,10 @@ export function SheetAiPanel({ getData, applyEdits, settings, onPersist, onClose
   }, []);
 
   const start = useCallback(async () => {
-    if (!modelPath) return setStatusMsg("Escolha um modelo primeiro.");
+    if (!modelPath) return setStatusMsg(t("ai.pickModel"));
     onPersist({ modelsDir: dir, lastModelPath: modelPath, ngl, ctx });
     setStatus("loading");
-    setStatusMsg("Iniciando llama-server e carregando o modelo…");
+    setStatusMsg(t("ai.starting"));
     try {
       const p = await startLlm(modelPath, ngl, ctx);
       await waitHealthy(p);
@@ -151,7 +152,13 @@ export function SheetAiPanel({ getData, applyEdits, settings, onPersist, onClose
           applyEdits(edits);
           setMessages((m) => [
             ...m,
-            { role: "assistant", content: `✓ ${edits.length} célula(s) atualizada(s): ${edits.map((e) => e.cell).join(", ")}` },
+            {
+              role: "assistant",
+              content: t("ai.editsApplied", {
+                n: edits.length,
+                cells: edits.map((e) => e.cell).join(", "),
+              }),
+            },
           ]);
         }
       } catch (e) {
@@ -173,46 +180,46 @@ export function SheetAiPanel({ getData, applyEdits, settings, onPersist, onClose
     <aside className="ai-panel">
       <div className="ai-header">
         <span className="ai-dot" style={{ background: dot }} />
-        <strong>IA local</strong>
+        <strong>{t("ai.title")}</strong>
         <span className="ai-spacer" />
-        <button className="tb-btn" onClick={() => { abortRef.current?.abort(); setMessages([]); }} disabled={!messages.length} title="Limpar conversa">🗑</button>
-        <button className="tb-btn" onClick={onClose} title="Fechar painel">✕</button>
+        <button className="tb-btn" onClick={() => { abortRef.current?.abort(); setMessages([]); }} disabled={!messages.length} title={t("ai.clearTitle")}>🗑</button>
+        <button className="tb-btn" onClick={onClose} title={t("ai.closeTitle")}>✕</button>
       </div>
 
       <div className="ai-config">
         <label className="ai-field">
-          <span>Pasta de modelos</span>
+          <span>{t("ai.modelsFolder")}</span>
           <div className="ai-row">
             <input
               value={dir}
               onChange={(e) => setDir(e.target.value)}
               spellCheck={false}
-              placeholder="Pasta com modelos .gguf"
+              placeholder={t("ai.folderPlaceholder")}
             />
-            <button className="tb-btn" onClick={browseDir} title="Escolher pasta">…</button>
-            <button className="tb-btn" onClick={() => scanDir(dir)}>Escanear</button>
+            <button className="tb-btn" onClick={browseDir} title={t("ai.browseTitle")}>…</button>
+            <button className="tb-btn" onClick={() => scanDir(dir)}>{t("ai.scan")}</button>
           </div>
         </label>
         <label className="ai-field">
-          <span>Modelo ({models.filter((m) => !m.is_projector).length} encontrados)</span>
+          <span>{t("ai.model", { n: models.filter((m) => !m.is_projector).length })}</span>
           <select value={modelPath} onChange={(e) => setModelPath(e.target.value)} disabled={status === "ready" || status === "loading"}>
-            <option value="">— escolher —</option>
+            <option value="">{t("ai.chooseModel")}</option>
             {models.filter((m) => !m.is_projector).map((m) => (
               <option key={m.path} value={m.path}>{m.name} · {m.size_gb.toFixed(2)} GB</option>
             ))}
           </select>
         </label>
         <div className="ai-row ai-tune">
-          <label title="Camadas na GPU (0 = só CPU)">GPU layers
+          <label title={t("ai.gpuLayersTitle")}>{t("ai.gpuLayers")}
             <input type="number" min={0} max={999} value={ngl} onChange={(e) => setNgl(Number(e.target.value))} disabled={status === "ready" || status === "loading"} />
           </label>
-          <label title="Tamanho do contexto">Contexto
+          <label title={t("ai.ctxTitle")}>{t("ai.ctx")}
             <input type="number" min={512} step={512} value={ctx} onChange={(e) => setCtx(Number(e.target.value))} disabled={status === "ready" || status === "loading"} />
           </label>
           {status === "ready" ? (
-            <button className="tb-btn ai-stop" onClick={stop}>Parar</button>
+            <button className="tb-btn ai-stop" onClick={stop}>{t("ai.stop")}</button>
           ) : (
-            <button className="tb-btn ai-start" onClick={start} disabled={status === "loading"}>{status === "loading" ? "Carregando…" : "Iniciar"}</button>
+            <button className="tb-btn ai-start" onClick={start} disabled={status === "loading"}>{status === "loading" ? t("ai.loading") : t("ai.start")}</button>
           )}
         </div>
         {statusMsg && <div className="ai-status-msg">{statusMsg}</div>}
@@ -220,13 +227,13 @@ export function SheetAiPanel({ getData, applyEdits, settings, onPersist, onClose
 
       <div className="ai-messages" ref={scrollRef}>
         {messages.length === 0 && (
-          <div className="ai-empty">Inicie um modelo e peça algo, ex.:<br />“preencha B com o dobro de A”, “some a coluna A em A10”, “crie uma coluna Total”.</div>
+          <div className="ai-empty">{t("ai.emptyLine1")}<br />{t("ai.emptyLine2")}</div>
         )}
         {messages.map((m, i) => (
           <div key={i} className={`ai-msg ai-${m.role}`}>
             {m.role === "assistant" && m.reasoning && (
               <details className="ai-reasoning" open={!m.content}>
-                <summary>💭 Raciocínio</summary>
+                <summary>{t("ai.reasoning")}</summary>
                 <div className="ai-reasoning-body">{m.reasoning}</div>
               </details>
             )}
@@ -240,14 +247,14 @@ export function SheetAiPanel({ getData, applyEdits, settings, onPersist, onClose
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); runChat(input); } }}
-          placeholder={status === "ready" ? "Peça uma edição ou pergunte sobre os dados…" : "Inicie um modelo"}
+          placeholder={status === "ready" ? t("ai.inputReady") : t("ai.inputIdle")}
           disabled={status !== "ready"}
           rows={2}
         />
         {streaming ? (
-          <button type="button" className="tb-btn" onClick={() => abortRef.current?.abort()}>Parar</button>
+          <button type="button" className="tb-btn" onClick={() => abortRef.current?.abort()}>{t("ai.stop")}</button>
         ) : (
-          <button type="submit" className="tb-btn ai-start" disabled={status !== "ready" || !input.trim()}>Enviar</button>
+          <button type="submit" className="tb-btn ai-start" disabled={status !== "ready" || !input.trim()}>{t("ai.send")}</button>
         )}
       </form>
     </aside>
