@@ -61,6 +61,10 @@ jobs:
         shell: bash
         run: mkdir -p src-tauri/binaries/llama && touch src-tauri/binaries/llama/.gitkeep
 
+      - name: Cargo.lock em dia (--locked)
+        working-directory: src-tauri
+        run: cargo fetch --locked
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
