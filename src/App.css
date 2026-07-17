@@ -7,7 +7,7 @@
   --panel: #f8f8f9;
   --border: #dadadd;
   --text: #1f2328;
-  --muted: #6b7280;
+  --muted: #646a78;
   --accent: #16a34a;
   --accent-soft: #dcfce7;
   font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -425,7 +425,7 @@ body {
   --panel: #f8faf5;
   --border: #dbe3d4;
   --text: #2e3a2e;
-  --muted: #697669;
+  --muted: #647064;
   --accent: #7a9e7e;
   --accent-soft: #e6efe1;
 }
@@ -450,7 +450,7 @@ body {
   --panel: #f7faf6;
   --border: #d5e0d3;
   --text: #24302a;
-  --muted: #67776c;
+  --muted: #617066;
   --accent: #4f7d5e;
   --accent-soft: #dcebd9;
 }
@@ -460,7 +460,7 @@ body {
   --panel: #fdf6f9;
   --border: #ecd3de;
   --text: #3a2a30;
-  --muted: #806d77;
+  --muted: #796771;
   --accent: #e8799f;
   --accent-soft: #fbe4ee;
 }
