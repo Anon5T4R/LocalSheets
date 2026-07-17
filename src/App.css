@@ -1,7 +1,11 @@
 :root {
-  --bg: #f4f4f5;
-  --panel: #ffffff;
-  --border: #e4e4e7;
+  /* Superficie suavizada: o fundo nao pode ser o pico de contraste da tela, senao
+     rouba o foco do accent. --panel deixa de ser #ffffff puro e vira off-white
+     tingido com o matiz do --bg (L*~97.6); --bg desce ~3.5 L*. So o L* mudou --
+     a/b (o matiz) ficam intactos pra nao mexer na identidade do tema. */
+  --bg: #eaeaeb;
+  --panel: #f8f8f9;
+  --border: #dadadd;
   --text: #1f2328;
   --muted: #6b7280;
   --accent: #16a34a;
@@ -399,73 +403,81 @@ body {
 }
 
 :root[data-theme="dark"] {
-  --bg: #18181b;
-  --panel: #1f1f23;
-  --border: #2e2e33;
+  /* Quase-preto levantado ~5 L*: #18181b tem contraste maximo contra tudo e
+     apaga o accent. A escada bg < panel < border foi preservada. */
+  --bg: #222225;
+  --panel: #29292e;
+  --border: #39393e;
   --text: #e4e4e7;
   --muted: #9ca3af;
   --accent: #22c55e;
   --accent-soft: #14331f;
 }
 :root[data-theme="dark"] .tb-btn:hover:not(:disabled) {
-  background: #2a2a2f;
+  /* +5 L* junto com o --panel do escuro: parado em #2a2a2f (L*17.2) o hover
+     ficaria abaixo do --panel novo (L*16.8) e sumiria. */
+  background: #35353a;
 }
 
 /* ---- Temas nomeados (paletas fixas; sobrepõem o accent) ---- */
 :root[data-theme="nature"] {
-  --bg: #f5f7f2;
-  --panel: #ffffff;
-  --border: #e2e8dd;
+  --bg: #eef1e9;
+  --panel: #f8faf5;
+  --border: #dbe3d4;
   --text: #2e3a2e;
-  --muted: #6f7d6f;
+  --muted: #697669;
   --accent: #7a9e7e;
   --accent-soft: #e6efe1;
 }
 
 :root[data-theme="darkblue"] {
-  --bg: #0d1520;
-  --panel: #131f30;
-  --border: #223049;
+  --bg: #16202e;
+  --panel: #1d2a3c;
+  --border: #2d3f59;
   --text: #e2e8f0;
   --muted: #8595ad;
   --accent: #3b82f6;
   --accent-soft: #1e3a5f;
 }
 :root[data-theme="darkblue"] .tb-btn:hover:not(:disabled) {
-  background: #1a2942;
+  /* Era o --panel-2 VELHO do darkblue; com o --panel novo (L*16.7) o hover
+     (L*16.5) ficava invisivel. Segue o --panel-2 novo da spec. */
+  background: #26374e;
 }
 
 :root[data-theme="calmgreen"] {
-  --bg: #f2f5f1;
-  --panel: #ffffff;
-  --border: #dde6dc;
+  --bg: #eaf0e9;
+  --panel: #f7faf6;
+  --border: #d5e0d3;
   --text: #24302a;
-  --muted: #6a7a6f;
+  --muted: #67776c;
   --accent: #4f7d5e;
   --accent-soft: #dcebd9;
 }
 
 :root[data-theme="pastelpink"] {
-  --bg: #fdf4f7;
-  --panel: #ffffff;
-  --border: #f2dfe7;
+  --bg: #f8ebf0;
+  --panel: #fdf6f9;
+  --border: #ecd3de;
   --text: #3a2a30;
-  --muted: #8a7580;
+  --muted: #806d77;
   --accent: #e8799f;
   --accent-soft: #fbe4ee;
 }
 
 :root[data-theme="punkprincess"] {
-  --bg: #120a1a;
-  --panel: #1a0f26;
-  --border: #2c1c3d;
+  --bg: #1c1228;
+  --panel: #251733;
+  --border: #3a2850;
   --text: #f0e6ff;
   --muted: #9a86b5;
   --accent: #ff2d95;
   --accent-soft: #33143a;
 }
 :root[data-theme="punkprincess"] .tb-btn:hover:not(:disabled) {
-  background: #241533;
+  /* Era o --panel-2 VELHO do punkprincess; com o --panel novo (L*10.9) o hover
+     (L*10.2) ficava mais ESCURO que o painel. Segue o --panel-2 novo da spec. */
+  background: #32204a;
 }
 
 /* ---- Settings modal ---- */
