@@ -411,6 +411,63 @@ body {
   background: #2a2a2f;
 }
 
+/* ---- Temas nomeados (paletas fixas; sobrepõem o accent) ---- */
+:root[data-theme="nature"] {
+  --bg: #f5f7f2;
+  --panel: #ffffff;
+  --border: #e2e8dd;
+  --text: #2e3a2e;
+  --muted: #6f7d6f;
+  --accent: #7a9e7e;
+  --accent-soft: #e6efe1;
+}
+
+:root[data-theme="darkblue"] {
+  --bg: #0d1520;
+  --panel: #131f30;
+  --border: #223049;
+  --text: #e2e8f0;
+  --muted: #8595ad;
+  --accent: #3b82f6;
+  --accent-soft: #1e3a5f;
+}
+:root[data-theme="darkblue"] .tb-btn:hover:not(:disabled) {
+  background: #1a2942;
+}
+
+:root[data-theme="calmgreen"] {
+  --bg: #f2f5f1;
+  --panel: #ffffff;
+  --border: #dde6dc;
+  --text: #24302a;
+  --muted: #6a7a6f;
+  --accent: #4f7d5e;
+  --accent-soft: #dcebd9;
+}
+
+:root[data-theme="pastelpink"] {
+  --bg: #fdf4f7;
+  --panel: #ffffff;
+  --border: #f2dfe7;
+  --text: #3a2a30;
+  --muted: #8a7580;
+  --accent: #e8799f;
+  --accent-soft: #fbe4ee;
+}
+
+:root[data-theme="punkprincess"] {
+  --bg: #120a1a;
+  --panel: #1a0f26;
+  --border: #2c1c3d;
+  --text: #f0e6ff;
+  --muted: #9a86b5;
+  --accent: #ff2d95;
+  --accent-soft: #33143a;
+}
+:root[data-theme="punkprincess"] .tb-btn:hover:not(:disabled) {
+  background: #241533;
+}
+
 /* ---- Settings modal ---- */
 .modal-overlay {
   position: fixed;
@@ -461,6 +518,7 @@ body {
 
 .seg {
   display: inline-flex;
+  flex-wrap: wrap;
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;

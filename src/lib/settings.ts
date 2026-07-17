@@ -1,4 +1,12 @@
-export type Theme = "system" | "light" | "dark";
+export type Theme =
+  | "system"
+  | "light"
+  | "dark"
+  | "nature"
+  | "darkblue"
+  | "calmgreen"
+  | "pastelpink"
+  | "punkprincess";
 
 export interface Settings {
   modelsDir: string;

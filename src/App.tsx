@@ -448,6 +448,11 @@ function SettingsModal({
     { id: "system", label: tr("set.system") },
     { id: "light", label: tr("set.light") },
     { id: "dark", label: tr("set.dark") },
+    { id: "nature", label: tr("set.nature") },
+    { id: "darkblue", label: tr("set.darkblue") },
+    { id: "calmgreen", label: tr("set.calmgreen") },
+    { id: "pastelpink", label: tr("set.pastelpink") },
+    { id: "punkprincess", label: tr("set.punkprincess") },
   ];
   return (
     <div className="modal-overlay" onClick={onClose}>

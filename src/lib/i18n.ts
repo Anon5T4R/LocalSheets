@@ -75,6 +75,11 @@ const pt = {
   "set.system": "Sistema",
   "set.light": "Claro",
   "set.dark": "Escuro",
+  "set.nature": "Natureza",
+  "set.darkblue": "Azul escuro",
+  "set.calmgreen": "Verde calmo",
+  "set.pastelpink": "Rosa pastel",
+  "set.punkprincess": "PunkPrincess",
 
   // --- Menu de contexto da planilha ---
   "ctx.deleteSheet": "Excluir planilha",
@@ -188,6 +193,11 @@ const en: Record<MessageKey, string> = {
   "set.system": "System",
   "set.light": "Light",
   "set.dark": "Dark",
+  "set.nature": "Nature",
+  "set.darkblue": "Dark blue",
+  "set.calmgreen": "Calm green",
+  "set.pastelpink": "Pastel pink",
+  "set.punkprincess": "PunkPrincess",
 
   "ctx.deleteSheet": "Delete worksheet",
   "ctx.cantDeleteOnly": "Can't delete the only worksheet.",
@@ -293,6 +303,11 @@ const es: Record<MessageKey, string> = {
   "set.system": "Sistema",
   "set.light": "Claro",
   "set.dark": "Oscuro",
+  "set.nature": "Naturaleza",
+  "set.darkblue": "Azul oscuro",
+  "set.calmgreen": "Verde tranquilo",
+  "set.pastelpink": "Rosa pastel",
+  "set.punkprincess": "PunkPrincess",
 
   "ctx.deleteSheet": "Eliminar hoja",
   "ctx.cantDeleteOnly": "No se puede eliminar la única hoja.",
