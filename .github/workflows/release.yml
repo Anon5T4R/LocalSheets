@@ -65,9 +65,22 @@ jobs:
       - name: Install JS deps
         run: npm ci
 
-      - name: Ensure binaries/llama exists (placeholder for build)
-        shell: bash
-        run: mkdir -p src-tauri/binaries/llama && touch src-tauri/binaries/llama/.gitkeep
+      # Este passo era um `mkdir` + `.gitkeep`: criava a pasta VAZIA e seguia. O
+      # instalador saía sem runtime de IA nenhum, enquanto as notas de release
+      # prometiam "IA local (llama.cpp / GGUF)". Os scripts de download já
+      # existiam aqui, fixados e apontando pro espelho — só não eram chamados.
+      - name: Baixar runtime de IA (llama.cpp) — Windows
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: powershell -ExecutionPolicy Bypass -File scripts/fetch-llama.ps1
+
+      - name: Baixar runtime de IA (llama.cpp) — Linux
+        if: matrix.platform == 'ubuntu-22.04'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/fetch-llama.sh
 
       - name: Cargo.lock em dia (--locked)
         working-directory: src-tauri
