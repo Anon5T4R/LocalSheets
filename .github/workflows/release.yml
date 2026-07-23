@@ -122,7 +122,7 @@ jobs:
           fi
 
       - name: Guardar o instalador
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           # `bundles` aqui é "appimage,deb": vírgula em nome de artefato é
           # pedir problema, e `platform` já é único por entrada da matriz.
@@ -151,7 +151,7 @@ jobs:
 
     steps:
       - name: Baixar os instaladores
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: dist
           merge-multiple: true
