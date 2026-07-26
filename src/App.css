@@ -11,6 +11,8 @@
   --accent: #16a34a;
   --accent-soft: #dcfce7;
   font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* <select> no Linux: sem isto o GTK pinta o texto com a cor dele. */
+  color-scheme: light;
 }
 
 * {
@@ -412,6 +414,8 @@ body {
   --muted: #9ca3af;
   --accent: #22c55e;
   --accent-soft: #14331f;
+  /* <select> no Linux: sem isto o GTK pinta o texto com a cor dele. */
+  color-scheme: dark;
 }
 :root[data-theme="dark"] .tb-btn:hover:not(:disabled) {
   /* +5 L* junto com o --panel do escuro: parado em #2a2a2f (L*17.2) o hover
@@ -428,6 +432,8 @@ body {
   --muted: #647064;
   --accent: #7a9e7e;
   --accent-soft: #e6efe1;
+  /* <select> no Linux: sem isto o GTK pinta o texto com a cor dele. */
+  color-scheme: light;
 }
 
 :root[data-theme="darkblue"] {
@@ -438,6 +444,8 @@ body {
   --muted: #8595ad;
   --accent: #3b82f6;
   --accent-soft: #1e3a5f;
+  /* <select> no Linux: sem isto o GTK pinta o texto com a cor dele. */
+  color-scheme: dark;
 }
 :root[data-theme="darkblue"] .tb-btn:hover:not(:disabled) {
   /* Era o --panel-2 VELHO do darkblue; com o --panel novo (L*16.7) o hover
@@ -453,6 +461,8 @@ body {
   --muted: #617066;
   --accent: #4f7d5e;
   --accent-soft: #dcebd9;
+  /* <select> no Linux: sem isto o GTK pinta o texto com a cor dele. */
+  color-scheme: light;
 }
 
 :root[data-theme="pastelpink"] {
@@ -463,6 +473,8 @@ body {
   --muted: #796771;
   --accent: #e8799f;
   --accent-soft: #fbe4ee;
+  /* <select> no Linux: sem isto o GTK pinta o texto com a cor dele. */
+  color-scheme: light;
 }
 
 :root[data-theme="punkprincess"] {
@@ -473,6 +485,8 @@ body {
   --muted: #9a86b5;
   --accent: #ff2d95;
   --accent-soft: #33143a;
+  /* <select> no Linux: sem isto o GTK pinta o texto com a cor dele. */
+  color-scheme: dark;
 }
 :root[data-theme="punkprincess"] .tb-btn:hover:not(:disabled) {
   /* Era o --panel-2 VELHO do punkprincess; com o --panel novo (L*10.9) o hover
