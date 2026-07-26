@@ -34,7 +34,7 @@
         "name": "Planilha",
         "description": "Planilha do LocalSheets",
         "role": "Editor",
-        "mimeType": "text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        "mimeType": "text/csv;application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       }
     ],
     "icon": [
